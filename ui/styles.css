@@ -1,0 +1,112 @@
+/* ── Global ───────────────────────────────────────────── */
+[data-testid="stAppViewContainer"] {
+    background-color: #0f1117;
+    color: #e8eaf6;
+}
+
+[data-testid="stSidebar"] {
+    background-color: #1a1d27;
+    border-right: 1px solid #2d2f3e;
+}
+
+/* ── Recipe Card ──────────────────────────────────────── */
+.recipe-card {
+    background: linear-gradient(135deg, #1e2130 0%, #252838 100%);
+    border: 1px solid #3d4065;
+    border-radius: 12px;
+    padding: 16px 20px 8px 20px;
+    margin-bottom: 8px;
+}
+
+.recipe-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.recipe-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #a78bfa;
+    letter-spacing: 0.01em;
+}
+
+.recipe-meta {
+    font-size: 0.82rem;
+    color: #9ca3af;
+}
+
+.recipe-divider {
+    border: none;
+    border-top: 1px solid #2d2f3e;
+    margin: 16px 0 8px 0;
+}
+
+/* ── Ingredient Badges ────────────────────────────────── */
+.badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 8px 0 16px 0;
+}
+
+.ingredient-badge {
+    background-color: #2e3250;
+    color: #818cf8;
+    border: 1px solid #4f52a0;
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* ── Empty State ──────────────────────────────────────── */
+.empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: #6b7280;
+    font-size: 0.95rem;
+    border: 2px dashed #2d2f3e;
+    border-radius: 12px;
+    margin: 16px 0;
+}
+
+/* ── Buttons ──────────────────────────────────────────── */
+[data-testid="stButton"] > button {
+    border-radius: 8px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    transition: background-color 0.2s ease;
+}
+
+/* Primary action button */
+[data-testid="stButton"] > button[kind="primary"] {
+    background-color: #6d28d9;
+    color: #ffffff;
+    border: none;
+}
+
+[data-testid="stButton"] > button[kind="primary"]:hover {
+    background-color: #7c3aed;
+}
+
+/* ── Sidebar labels ───────────────────────────────────── */
+[data-testid="stSidebar"] label {
+    color: #c4b5fd !important;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+/* ── Section headers ──────────────────────────────────── */
+h1, h2, h3 {
+    color: #e8eaf6 !important;
+}
+
+/* ── Status / info boxes ──────────────────────────────── */
+[data-testid="stAlert"] {
+    border-radius: 8px;
+}
