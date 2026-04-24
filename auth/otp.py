@@ -21,6 +21,8 @@ def send_otp(email: str, purpose: str) -> str:
         send_email(email, template="otp_verify", context={"otp": otp, "email": email})
     elif purpose == "reset_password":
         send_email(email, template="password_reset", context={"otp": otp, "email": email})
+    elif purpose in ("2fa", "login_otp"):
+        send_email(email, template="otp_verify", context={"otp": otp, "email": email})
 
     return otp
 
