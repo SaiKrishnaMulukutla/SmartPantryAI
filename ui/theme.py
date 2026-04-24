@@ -395,6 +395,18 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div > div {
   font-weight: 500;
   margin: 3px;
 }
+
+/* ── Expander header (st.expander) ───────────────────── */
+[data-testid="stExpander"] summary {
+  color: var(--text) !important;
+  font-weight: 500 !important;
+}
+[data-testid="stExpander"] summary:hover {
+  color: var(--green) !important;
+}
+[data-testid="stExpander"] summary svg {
+  color: var(--text) !important;
+}
 </style>
 """
 
