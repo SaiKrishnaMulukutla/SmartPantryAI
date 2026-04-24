@@ -1,181 +1,68 @@
+"""SmartPantryAI — entry point and router."""
 from __future__ import annotations
 
-import io
-import os
 from pathlib import Path
 
-import numpy as np
-from PIL import Image
 import streamlit as st
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# ── Page config (must be first Streamlit call) ──────────────────────
+# ── Page config (must be first Streamlit call) ───────────────────────
 st.set_page_config(
-    page_title="AI Recipe Recommender",
+    page_title="SmartPantryAI",
     page_icon="🍳",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# ── Inject custom CSS ───────────────────────────────────────────────
+# ── Inject design tokens ─────────────────────────────────────────────
+from ui.theme import inject as _inject_theme
+_inject_theme()
+
 _CSS_PATH = Path(__file__).parent / "ui" / "styles.css"
 if _CSS_PATH.exists():
     st.markdown(f"<style>{_CSS_PATH.read_text()}</style>", unsafe_allow_html=True)
 
-# ── Local imports (after dotenv + page config) ──────────────────────
-from detector.yolo_detector import YOLODetector, Detection
-from preference_engine.preference_ui import render_preference_sidebar
-from recipe_engine.groq_client import GroqRecipeClient
-from recipe_engine.recipe_parser import Recipe
-from ui.components import (
-    render_recipe_cards,
-    render_detection_overlay,
-    render_ingredient_badges,
-    render_empty_state,
-)
+# ── Session init ─────────────────────────────────────────────────────
+from auth.session import init_session, is_authenticated, logout, go
+init_session()
 
+# ── Sidebar nav (authenticated only) ────────────────────────────────
+if is_authenticated():
+    from auth.session import current_email
+    with st.sidebar:
+        st.markdown(f"👤 **{current_email()}**")
+        st.markdown("---")
+        if st.button("🏠 Dashboard", use_container_width=True):
+            go("dashboard")
+        if st.button("📖 History", use_container_width=True):
+            go("history")
+        if st.button("❤️ Favourites", use_container_width=True):
+            go("favourites")
+        st.markdown("---")
+        if st.button("Sign Out", use_container_width=True):
+            logout()
+            st.rerun()
 
-# ── Constants ───────────────────────────────────────────────────────
-MODEL_PATH = os.getenv("YOLO_MODEL_PATH", "models/food_yolo11/best.pt")
-CONFIDENCE = float(os.getenv("CONFIDENCE_THRESHOLD", "0.5"))
-MAX_RECIPES = int(os.getenv("MAX_RECIPES", "3"))
+# ── Router ───────────────────────────────────────────────────────────
+page = st.session_state.get("page", "login")
 
+if not is_authenticated():
+    if page == "register":
+        from pages.register import render
+    elif page == "verify_otp":
+        from pages.verify_otp import render
+    elif page == "forgot_password":
+        from pages.forgot_password import render
+    else:
+        from pages.login import render
+else:
+    if page == "history":
+        from pages.history import render
+    elif page == "favourites":
+        from pages.favourites import render
+    else:
+        from pages.dashboard import render
 
-# ── Cached resource loaders ─────────────────────────────────────────
-
-@st.cache_resource(show_spinner="Loading YOLO model…")
-def load_detector() -> YOLODetector:
-    if os.path.exists(MODEL_PATH):
-        return YOLODetector(MODEL_PATH, confidence=CONFIDENCE)
-    # Fall back to pretrained checkpoint for testing before fine-tuning
-    st.warning(
-        f"Custom model not found at `{MODEL_PATH}`. "
-        "Loading pretrained `yolo11m.pt` instead. "
-        "Train and place your model to detect food ingredients accurately.",
-        icon="⚠️",
-    )
-    return YOLODetector.from_pretrained("yolo11m.pt", confidence=CONFIDENCE)
-
-
-@st.cache_resource(show_spinner="Connecting to Groq…")
-def load_groq_client() -> GroqRecipeClient | None:
-    api_key = os.getenv("GROQ_API_KEY")
-    if not api_key:
-        return None
-    return GroqRecipeClient(api_key=api_key)
-
-
-# ── Session state defaults ──────────────────────────────────────────
-
-def _init_state() -> None:
-    defaults = {
-        "camera_running": False,
-        "detections": [],
-        "last_ingredients": [],
-        "recipes": [],
-        "frame_rgb": None,
-    }
-    for key, val in defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = val
-
-
-# ── Main layout ─────────────────────────────────────────────────────
-
-def main() -> None:
-    _init_state()
-
-    # Sidebar — preferences
-    preferences = render_preference_sidebar()
-
-    # Header
-    st.title("🍳 AI Recipe Recommender")
-    st.caption("Point your camera at ingredients → get personalized recipes powered by YOLOv11 + Groq Llama 3")
-
-    # Two-column layout
-    cam_col, recipe_col = st.columns([1, 1], gap="large")
-
-    # ── Left column: Camera feed ────────────────────────────────────
-    with cam_col:
-        st.subheader("Live Ingredient Detection")
-
-        snapshot = st.camera_input("Point camera at ingredients and capture")
-
-        # Run detection before rendering button so disabled state is correct
-        if snapshot is not None:
-            detector = load_detector()
-            import cv2
-            img = Image.open(io.BytesIO(snapshot.getvalue())).convert("RGB")
-            frame_bgr = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-
-            detections: list[Detection] = detector.detect(frame_bgr)
-            annotated_bgr = detector.draw_boxes(frame_bgr, detections)
-            frame_rgb = cv2.cvtColor(annotated_bgr, cv2.COLOR_BGR2RGB)
-
-            st.session_state.frame_rgb = frame_rgb
-            st.session_state.detections = detections
-            st.session_state.last_ingredients = detector.unique_labels(detections)
-
-            render_detection_overlay(frame_rgb)
-
-        elif st.session_state.frame_rgb is not None:
-            render_detection_overlay(st.session_state.frame_rgb, caption="Last captured frame")
-        else:
-            render_empty_state("Capture a photo to detect ingredients.")
-
-        get_recipes_btn = st.button(
-            "Get Recipes",
-            type="primary",
-            use_container_width=True,
-            disabled=not st.session_state.last_ingredients,
-        )
-
-        st.markdown("**Detected Ingredients**")
-        render_ingredient_badges(st.session_state.last_ingredients)
-
-    # ── Right column: Recipes ───────────────────────────────────────
-    with recipe_col:
-        st.subheader("Recipe Suggestions")
-
-        if get_recipes_btn:
-            _fetch_and_display_recipes(preferences)
-        else:
-            if st.session_state.recipes:
-                render_recipe_cards(st.session_state.recipes)
-            else:
-                render_empty_state(
-                    "Detect some ingredients and click 'Get Recipes' to see suggestions here."
-                )
-
-
-def _fetch_and_display_recipes(preferences) -> None:
-    client = load_groq_client()
-    if client is None:
-        st.error(
-            "GROQ_API_KEY is not set. Add it to your `.env` file and restart the app.",
-            icon="🔑",
-        )
-        return
-
-    ingredients = st.session_state.last_ingredients
-    if not ingredients:
-        st.warning("No ingredients detected yet. Start the camera and point it at some food.")
-        return
-
-    with st.spinner(f"Generating recipes for: {', '.join(ingredients)}…"):
-        try:
-            recipes: list[Recipe] = client.get_recipes_sync(
-                ingredients, preferences, max_recipes=MAX_RECIPES
-            )
-            st.session_state.recipes = recipes
-        except Exception as exc:
-            st.error(f"Groq API error: {exc}", icon="❌")
-            return
-
-    render_recipe_cards(st.session_state.recipes)
-
-
-if __name__ == "__main__":
-    main()
+render()
