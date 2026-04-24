@@ -57,7 +57,7 @@ class YOLODetector:
 
     def detect(self, frame_rgb: np.ndarray) -> list[Detection]:
         """Run inference on an RGB frame, return detections above confidence threshold."""
-        results = self.model(frame_rgb, conf=self.confidence, verbose=False)
+        results = self.model(frame_rgb, conf=self.confidence, iou=0.45, max_det=50, verbose=False)
         detections: list[Detection] = []
         for result in results:
             if result.boxes is None:

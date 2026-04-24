@@ -25,7 +25,7 @@ from ui.components import (
 )
 
 _MODEL_PATH = os.getenv("YOLO_MODEL_PATH", "models/food_yolo11/best.pt")
-_CONFIDENCE = float(os.getenv("CONFIDENCE_THRESHOLD", "0.5"))
+_CONFIDENCE = float(os.getenv("CONFIDENCE_THRESHOLD", "0.25"))
 _MAX_RECIPES = int(os.getenv("MAX_RECIPES", "3"))
 
 
@@ -34,7 +34,7 @@ def _load_detector() -> YOLODetector:
     if os.path.exists(_MODEL_PATH):
         return YOLODetector(_MODEL_PATH, confidence=_CONFIDENCE)
     st.warning(f"Custom model not found at `{_MODEL_PATH}`. Using pretrained checkpoint.", icon="⚠️")
-    return YOLODetector.from_pretrained("yolo11n.pt", confidence=_CONFIDENCE)
+    return YOLODetector.from_pretrained("yolo11s.pt", confidence=_CONFIDENCE)
 
 
 @st.cache_resource(show_spinner="Connecting to Groq…")
