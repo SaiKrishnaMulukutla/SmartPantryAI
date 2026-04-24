@@ -32,7 +32,7 @@ def render() -> None:
     titles = {
         "register":       "Verify your email",
         "reset_password": "Reset your password",
-        "login_otp":      "Sign in with OTP",
+        "2fa":            "Two-factor verification",
     }
     title = titles.get(purpose, "Verify your email")
 
@@ -71,9 +71,10 @@ def render() -> None:
             st.success("Email verified! Welcome to SmartPantryAI 🎉")
             st.rerun()
 
-        elif purpose == "login_otp":
-            user = get_user_by_email(email)
-            login(user["id"], user["email"], user.get("name", ""))
+        elif purpose == "2fa":
+            pending = st.session_state.get("pending_user", {})
+            login(pending["id"], pending["email"], pending.get("name", ""))
+            st.session_state.pop("pending_user", None)
             st.rerun()
 
         elif purpose == "reset_password":
