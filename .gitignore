@@ -2,12 +2,6 @@
 .env
 .env.*
 
-# Model weights
-models/
-*.pt
-*.onnx
-*.tflite
-
 # Dataset (large — regenerate via prepare_dataset.py)
 data/raw/
 data/pool/
