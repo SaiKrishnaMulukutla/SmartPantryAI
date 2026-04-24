@@ -3,6 +3,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import truststore
+truststore.inject_into_ssl()  # must be before any ssl/httpx/smtplib usage
+
 import streamlit as st
 from dotenv import load_dotenv
 

@@ -3,14 +3,11 @@ from __future__ import annotations
 
 import os
 
-import truststore
 from dotenv import load_dotenv
 
 load_dotenv()
 
-truststore.inject_into_ssl()
-
-from supabase import Client, create_client  # noqa: E402
+from supabase import Client, create_client
 
 _URL = os.environ["SUPABASE_URL"]
 _KEY = os.environ["SUPABASE_SERVICE_KEY"]
