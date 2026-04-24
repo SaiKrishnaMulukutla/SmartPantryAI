@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import cv2
 import numpy as np
@@ -13,6 +13,13 @@ class Detection:
     label: str
     confidence: float
     bbox: tuple[int, int, int, int]  # (x1, y1, x2, y2)
+
+
+@dataclass
+class InferenceResult:
+    labels: list[str]            # deduplicated ingredient names
+    annotated_image: np.ndarray  # RGB frame with bounding boxes drawn
+    raw_boxes: list[dict] = field(default_factory=list)  # [{label, confidence, bbox}]
 
 
 class YOLODetector:
@@ -97,3 +104,18 @@ class YOLODetector:
     def unique_labels(self, detections: list[Detection]) -> list[str]:
         """Return deduplicated ingredient names from a detection list."""
         return list(dict.fromkeys(d.label for d in detections))
+
+
+def run_inference(detector: YOLODetector, frame_bgr: np.ndarray) -> InferenceResult:
+    """Run detection and return a fully-typed InferenceResult."""
+    detections = detector.detect(frame_bgr)
+    annotated_bgr = detector.draw_boxes(frame_bgr, detections)
+    annotated_rgb = cv2.cvtColor(annotated_bgr, cv2.COLOR_BGR2RGB)
+    return InferenceResult(
+        labels=detector.unique_labels(detections),
+        annotated_image=annotated_rgb,
+        raw_boxes=[
+            {"label": d.label, "confidence": d.confidence, "bbox": d.bbox}
+            for d in detections
+        ],
+    )

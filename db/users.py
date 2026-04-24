@@ -6,10 +6,11 @@ from typing import Any
 from db.client import supabase
 
 
-def create_user(email: str, password_hash: str) -> dict[str, Any]:
+def create_user(email: str, password_hash: str, name: str = "") -> dict[str, Any]:
     res = supabase.table("users").insert({
         "email": email,
         "password_hash": password_hash,
+        "name": name,
         "is_verified": False,
     }).execute()
     return res.data[0]

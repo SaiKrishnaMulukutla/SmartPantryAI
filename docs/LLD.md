@@ -13,7 +13,7 @@ smartpantryai/
 │       ├── sender.py             # Gmail SMTP transport
 │       └── templates/            # HTML email templates
 ├── db/
-│   ├── client.py                 # Supabase singleton + SSL context
+│   ├── client.py                 # Supabase singleton (truststore injected for corporate proxy)
 │   ├── schema.sql                # DDL for all tables
 │   ├── users.py                  # User CRUD
 │   ├── preferences.py            # Preferences upsert/read
@@ -21,8 +21,8 @@ smartpantryai/
 │   ├── favourites.py             # Favourites CRUD
 │   └── otp_tokens.py             # OTP token store/verify
 ├── detection/
-│   ├── model.py                  # YOLO loader + run_inference()
-│   └── annotator.py              # Draw bounding boxes on image
+│   ├── model.py                  # YOLODetector, InferenceResult, run_inference()
+│   └── frame_processor.py        # OpenCV webcam capture + preprocessing
 ├── recipe_engine/
 │   ├── groq_client.py            # Groq API wrapper (sync + async)
 │   ├── prompt_builder.py         # Build structured LLM prompt
@@ -39,7 +39,8 @@ smartpantryai/
 │   └── favourites.py
 └── ui/
     ├── theme.py                  # Inject CSS design tokens
-    └── styles.css
+    ├── components.py             # Shared rendering helpers (badges, overlays, empty states)
+    └── preference_widget.py      # Preference sidebar widget
 ```
 
 ---
@@ -84,7 +85,7 @@ def verify_password(plain: str, hashed: str) -> bool
 def generate_otp() -> str
     # 6-digit zero-padded string
 
-def send_otp(email: str, purpose: Literal["verify", "reset"]) -> None
+def send_otp(email: str, purpose: Literal["register", "reset_password"]) -> None
     # Generates OTP → stores in DB → sends email
 
 def verify(email: str, otp: str) -> bool
@@ -94,33 +95,49 @@ def verify(email: str, otp: str) -> bool
 ### 2.4 detection/model.py
 
 ```python
-def load_model(weights_path: str = "models/food_yolo11/best.pt") -> YOLO
-    # Cached singleton — loads once per Streamlit session
-
-def run_inference(image: PIL.Image, conf_threshold: float = 0.35) -> InferenceResult
-    # Returns InferenceResult(labels: list[str], annotated_image: PIL.Image)
+@dataclass
+class Detection:
+    label: str
+    confidence: float
+    bbox: tuple[int, int, int, int]   # (x1, y1, x2, y2)
 
 @dataclass
 class InferenceResult:
-    labels: list[str]           # Unique detected ingredient names
-    annotated_image: PIL.Image  # Image with bounding boxes drawn
-    raw_boxes: list[dict]       # [{label, confidence, bbox}] for debugging
+    labels: list[str]            # Deduplicated ingredient names
+    annotated_image: np.ndarray  # RGB frame with bounding boxes drawn
+    raw_boxes: list[dict]        # [{label, confidence, bbox}]
+
+class YOLODetector:
+    def __init__(self, model_path: str, confidence: float = 0.5) -> None
+    def detect(self, frame: np.ndarray) -> list[Detection]
+    def draw_boxes(self, frame: np.ndarray, detections: list[Detection]) -> np.ndarray
+    def unique_labels(self, detections: list[Detection]) -> list[str]
+
+def run_inference(detector: YOLODetector, frame_bgr: np.ndarray) -> InferenceResult
+    # Runs detect + draw_boxes + colour conversion in one call
+    # Returns fully-typed InferenceResult — pages never touch raw Detection objects
 ```
 
 ### 2.5 preference_engine/schema.py
 
 ```python
-@dataclass
-class UserPreferences:
-    diet: Literal["veg", "non-veg", "vegan"]
-    health: Literal["normal", "diabetic", "low-calorie", "high-protein"]
-    cuisine: str                # "north_indian", "south_indian", "italian", etc.
-    mood: Literal["tired", "adventurous", "comfort", "quick"]
-    time_minutes: int           # Max cook time
+class UserPreferences(BaseModel):   # Pydantic — validation + serialisation built-in
+    diet:         Literal["veg", "non_veg", "eggetarian"]          = "veg"
+    health:       Literal["normal", "diabetic", "low_bp", "high_bp"] = "normal"
+    cuisine:      Literal["north_indian", "south_indian", "chinese",
+                          "mediterranean", "japanese"]              = "north_indian"
+    mood:         Literal["party", "tired", "romantic", "quick_bite"] = "tired"
+    time_minutes: Literal[10, 20, 30, 40]                           = 30
 
     @classmethod
-    def from_dict(cls, d: dict) -> "UserPreferences": ...
-    def to_dict(self) -> dict: ...
+    def from_dict(cls, d: dict) -> "UserPreferences"
+        # wraps model_validate(d)
+
+    def to_dict(self) -> dict
+        # wraps model_dump(include={...5 fields...})
+
+    def summary(self) -> str
+        # Human-readable label string for sidebar display
 ```
 
 ### 2.6 recipe_engine/prompt_builder.py
@@ -258,7 +275,7 @@ Pages do **not**:
 | `GROQ_API_KEY` | recipe_engine/groq_client.py | Groq API key |
 | `SMTP_EMAIL` | auth/email/sender.py | Gmail sender address |
 | `SMTP_APP_PASSWORD` | auth/email/sender.py | Gmail App Password (no spaces) |
-| `REQUESTS_CA_BUNDLE` | db/client.py | Set by Netskope; triggers SSL patch |
+| `REQUESTS_CA_BUNDLE` | db/client.py | Set by Netskope on corporate machines; presence signals corporate proxy environment |
 
 ---
 

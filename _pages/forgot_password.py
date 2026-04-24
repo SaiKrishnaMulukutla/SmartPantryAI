@@ -8,7 +8,18 @@ from auth.session import go
 from db.users import get_user_by_email
 
 
+_AUTH_LAYOUT_CSS = """
+<style>
+[data-testid="stMain"] .block-container {
+  max-width: 520px !important;
+  padding-top: 60px !important;
+}
+</style>
+"""
+
+
 def render() -> None:
+    st.markdown(_AUTH_LAYOUT_CSS, unsafe_allow_html=True)
     st.markdown("""
     <div class="auth-card">
       <h2>Forgot password?</h2>

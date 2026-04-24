@@ -10,7 +10,18 @@ from db.users import get_user_by_email, mark_verified, update_password
 from auth.password import hash_password
 
 
+_AUTH_LAYOUT_CSS = """
+<style>
+[data-testid="stMain"] .block-container {
+  max-width: 520px !important;
+  padding-top: 60px !important;
+}
+</style>
+"""
+
+
 def render() -> None:
+    st.markdown(_AUTH_LAYOUT_CSS, unsafe_allow_html=True)
     email = st.session_state.get("pending_email", "")
     purpose = st.session_state.get("otp_purpose", "register")
 
@@ -19,14 +30,14 @@ def render() -> None:
         return
 
     title = "Verify your email" if purpose == "register" else "Reset your password"
-    st.markdown(f"""
-    <div class="auth-card">
-      <h2>{title}</h2>
-      <p class="subtitle">We sent a 6-digit code to <strong>{email}</strong></p>
-    </div>
-    """, unsafe_allow_html=True)
 
     with st.form("otp_form"):
+        st.markdown(f"""
+        <div class="auth-heading">
+            <h2>{title}</h2>
+            <p>We sent a 6-digit code to <strong>{email}</strong></p>
+        </div>
+        """, unsafe_allow_html=True)
         otp = st.text_input("Enter 6-digit code", placeholder="_ _ _ _ _ _",
                             max_chars=6)
 
@@ -51,7 +62,7 @@ def render() -> None:
             mark_verified(email)
             user = get_user_by_email(email)
             send_email(email, template="welcome", context={"email": email})
-            login(user["id"], user["email"])
+            login(user["id"], user["email"], user.get("name", ""))
             st.success("Email verified! Welcome to SmartPantryAI 🎉")
             st.rerun()
 

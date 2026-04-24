@@ -62,3 +62,10 @@ class UserPreferences(BaseModel):
             f"{self.cuisine_label()} · {self.mood_label()} · "
             f"{self.time_minutes} min"
         )
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "UserPreferences":
+        return cls.model_validate(d)
+
+    def to_dict(self) -> dict:
+        return self.model_dump(include={"diet", "health", "cuisine", "mood", "time_minutes"})
