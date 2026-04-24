@@ -24,7 +24,7 @@ def get_history(user_id: str, limit: int = 20) -> list[dict[str, Any]]:
         .limit(limit)
         .execute()
     )
-    return res.data or []
+    return (res.data or []) if res else []
 
 
 def delete_history_entry(entry_id: str) -> None:

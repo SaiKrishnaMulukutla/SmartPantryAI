@@ -17,12 +17,12 @@ def create_user(email: str, password_hash: str) -> dict[str, Any]:
 
 def get_user_by_email(email: str) -> dict[str, Any] | None:
     res = supabase.table("users").select("*").eq("email", email).maybe_single().execute()
-    return res.data
+    return res.data if res else None
 
 
 def get_user_by_id(user_id: str) -> dict[str, Any] | None:
     res = supabase.table("users").select("*").eq("id", user_id).maybe_single().execute()
-    return res.data
+    return res.data if res else None
 
 
 def mark_verified(email: str) -> None:

@@ -26,7 +26,7 @@ def get_favourites(user_id: str) -> list[dict[str, Any]]:
         .order("saved_at", desc=True)
         .execute()
     )
-    return res.data or []
+    return (res.data or []) if res else []
 
 
 def is_favourite(user_id: str, recipe_name: str) -> bool:
@@ -38,4 +38,4 @@ def is_favourite(user_id: str, recipe_name: str) -> bool:
         .maybe_single()
         .execute()
     )
-    return res.data is not None
+    return bool(res and res.data)

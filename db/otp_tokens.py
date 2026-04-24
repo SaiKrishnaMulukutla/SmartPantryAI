@@ -30,7 +30,7 @@ def verify_otp(email: str, otp: str) -> bool:
         .maybe_single()
         .execute()
     )
-    if not res.data:
+    if not res or not res.data:
         return False
     expires_at = datetime.fromisoformat(res.data["expires_at"])
     if datetime.now(timezone.utc) > expires_at:
