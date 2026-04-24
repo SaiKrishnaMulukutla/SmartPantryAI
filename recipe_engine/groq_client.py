@@ -4,7 +4,6 @@ import asyncio
 import os
 from typing import Any
 
-import httpx
 from groq import AsyncGroq, Groq
 
 from preference_engine.schema import UserPreferences
@@ -45,13 +44,8 @@ class GroqRecipeClient:
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens
-        # Python 3.13 enforces RFC 5280 keyUsage — Netskope CA cert fails this check.
-        # Disable verification for local dev; on cloud (Streamlit) no proxy exists.
-        _verify = not bool(os.getenv("REQUESTS_CA_BUNDLE"))
-        http_client = httpx.Client(verify=False if not _verify else True)
-        async_http_client = httpx.AsyncClient(verify=False if not _verify else True)
-        self._async_client = AsyncGroq(api_key=resolved_key, http_client=async_http_client)
-        self._sync_client = Groq(api_key=resolved_key, http_client=http_client)
+        self._async_client = AsyncGroq(api_key=resolved_key)
+        self._sync_client = Groq(api_key=resolved_key)
 
     # ------------------------------------------------------------------
     # Async interface
