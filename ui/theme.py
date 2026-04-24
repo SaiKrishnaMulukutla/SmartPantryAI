@@ -396,31 +396,7 @@ div[data-testid="stVerticalBlockBorderWrapper"] > div > div {
   margin: 3px;
 }
 
-/* ── Global text colour fix ──────────────────────────── */
-/* Streamlit computes faded secondary colours from textColor.
-   Force all prose content to full-opacity text. */
-[data-testid="stMain"] p,
-[data-testid="stMain"] li,
-[data-testid="stMain"] ol,
-[data-testid="stMain"] ul,
-[data-testid="stMain"] span,
-[data-testid="stMain"] label,
-[data-testid="stMain"] strong,
-[data-testid="stMain"] em {
-  color: var(--text) !important;
-}
-
-/* Restore intentional colour overrides after the broad rule */
-[data-testid="stMain"] .rc-badge-green span,
-[data-testid="stMain"] .health-note,
-[data-testid="stMain"] .health-note *,
-[data-testid="stMain"] .ingredient-badge,
-[data-testid="stMain"] .badge,
-[data-testid="stMain"] .sidebar-brand-name {
-  color: inherit !important;
-}
-
-/* Expander header */
+/* ── Expander header (st.expander) ───────────────────── */
 [data-testid="stExpander"] summary {
   color: var(--text) !important;
   font-weight: 500 !important;
