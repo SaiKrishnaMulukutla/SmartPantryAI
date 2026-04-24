@@ -34,7 +34,7 @@ def _load_detector() -> YOLODetector:
     if os.path.exists(_MODEL_PATH):
         return YOLODetector(_MODEL_PATH, confidence=_CONFIDENCE)
     st.warning(f"Custom model not found at `{_MODEL_PATH}`. Using pretrained checkpoint.", icon="⚠️")
-    return YOLODetector.from_pretrained("yolo11s.pt", confidence=_CONFIDENCE)
+    return YOLODetector.from_pretrained("yolo11n.pt", confidence=_CONFIDENCE)
 
 
 @st.cache_resource(show_spinner="Connecting to Groq…")
