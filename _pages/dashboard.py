@@ -92,7 +92,7 @@ def render() -> None:
             st.session_state.frame_rgb = result.annotated_image
             st.session_state.last_ingredients = result.labels
 
-            render_detection_overlay(frame_rgb)
+            render_detection_overlay(result.annotated_image)
         elif st.session_state.frame_rgb is not None:
             render_detection_overlay(st.session_state.frame_rgb, caption="Last captured frame")
         else:

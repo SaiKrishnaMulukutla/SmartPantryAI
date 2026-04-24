@@ -29,7 +29,12 @@ def render() -> None:
         go("login")
         return
 
-    title = "Verify your email" if purpose == "register" else "Reset your password"
+    titles = {
+        "register":       "Verify your email",
+        "reset_password": "Reset your password",
+        "login_otp":      "Sign in with OTP",
+    }
+    title = titles.get(purpose, "Verify your email")
 
     with st.form("otp_form"):
         st.markdown(f"""
@@ -64,6 +69,11 @@ def render() -> None:
             send_email(email, template="welcome", context={"email": email})
             login(user["id"], user["email"], user.get("name", ""))
             st.success("Email verified! Welcome to SmartPantryAI 🎉")
+            st.rerun()
+
+        elif purpose == "login_otp":
+            user = get_user_by_email(email)
+            login(user["id"], user["email"], user.get("name", ""))
             st.rerun()
 
         elif purpose == "reset_password":
