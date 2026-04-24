@@ -2,20 +2,39 @@
 from __future__ import annotations
 
 import os
-import ssl
 
-import httpx
 from dotenv import load_dotenv
-from supabase import Client, create_client
 
 load_dotenv()
 
-_URL = os.environ["SUPABASE_URL"]
-_KEY = os.environ["SUPABASE_SERVICE_KEY"]   # service key for server-side ops
+# ── SSL bypass for Netskope corporate proxy ──────────────────────────
+# supabase-py uses httpx internally. Patch both Client and AsyncClient
+# BEFORE importing supabase so every connection skips cert verification.
+# On Streamlit Cloud there is no proxy — verify=True would work fine there.
+import httpx
 
-# On Netskope corp networks Python 3.13 rejects the CA cert.
-# verify=False is safe here — traffic is internal dev only; Streamlit Cloud has no proxy.
-_http = httpx.Client(verify=False)
+_orig_client_init = httpx.Client.__init__
+_orig_async_init  = httpx.AsyncClient.__init__
+
+
+def _client_init(self, *a, **kw):
+    kw.setdefault("verify", False)
+    _orig_client_init(self, *a, **kw)
+
+
+def _async_init(self, *a, **kw):
+    kw.setdefault("verify", False)
+    _orig_async_init(self, *a, **kw)
+
+
+httpx.Client.__init__      = _client_init
+httpx.AsyncClient.__init__ = _async_init
+
+# ── Import supabase AFTER the patch ─────────────────────────────────
+from supabase import Client, create_client  # noqa: E402
+
+_URL = os.environ["SUPABASE_URL"]
+_KEY = os.environ["SUPABASE_SERVICE_KEY"]
 
 _client: Client | None = None
 
@@ -27,5 +46,4 @@ def get_client() -> Client:
     return _client
 
 
-# Convenience alias
 supabase: Client = get_client()
