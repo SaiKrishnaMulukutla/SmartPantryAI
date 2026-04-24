@@ -4,7 +4,6 @@ from __future__ import annotations
 import io
 import os
 
-import cv2
 import numpy as np
 from PIL import Image
 import streamlit as st
@@ -86,8 +85,8 @@ def render() -> None:
         # Run detection
         if image_data:
             img = Image.open(io.BytesIO(image_data)).convert("RGB")
-            frame_bgr = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-            result: InferenceResult = run_inference(_load_detector(), frame_bgr)
+            frame_rgb = np.array(img)
+            result: InferenceResult = run_inference(_load_detector(), frame_rgb)
 
             st.session_state.frame_rgb = result.annotated_image
             st.session_state.last_ingredients = result.labels

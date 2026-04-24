@@ -3,8 +3,8 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 
-import cv2
 import numpy as np
+from PIL import Image, ImageDraw
 from ultralytics import YOLO
 
 
@@ -19,13 +19,12 @@ class Detection:
 class InferenceResult:
     labels: list[str]            # deduplicated ingredient names
     annotated_image: np.ndarray  # RGB frame with bounding boxes drawn
-    raw_boxes: list[dict] = field(default_factory=list)  # [{label, confidence, bbox}]
+    raw_boxes: list[dict] = field(default_factory=list)
 
 
 class YOLODetector:
     """YOLOv11 inference wrapper for food ingredient detection."""
 
-    # Colour palette — one colour per class index (cycles if >len)
     _PALETTE = [
         (0, 200, 100),
         (0, 140, 255),
@@ -50,18 +49,16 @@ class YOLODetector:
 
     @classmethod
     def from_pretrained(cls, model_name: str = "yolo11m.pt", confidence: float = 0.5) -> "YOLODetector":
-        """Load a pretrained Ultralytics checkpoint by name (downloads automatically)."""
         instance = object.__new__(cls)
         instance.model = YOLO(model_name)
         instance.confidence = confidence
         instance.class_names = list(instance.model.names.values())
         return instance
 
-    def detect(self, frame: np.ndarray) -> list[Detection]:
-        """Run inference on a single BGR frame, return detections above confidence threshold."""
-        results = self.model(frame, conf=self.confidence, verbose=False)
+    def detect(self, frame_rgb: np.ndarray) -> list[Detection]:
+        """Run inference on an RGB frame, return detections above confidence threshold."""
+        results = self.model(frame_rgb, conf=self.confidence, verbose=False)
         detections: list[Detection] = []
-
         for result in results:
             if result.boxes is None:
                 continue
@@ -71,46 +68,31 @@ class YOLODetector:
                 conf = float(box.conf[0])
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
                 detections.append(Detection(label=label, confidence=conf, bbox=(x1, y1, x2, y2)))
-
         return detections
 
-    def draw_boxes(self, frame: np.ndarray, detections: list[Detection]) -> np.ndarray:
-        """Draw bounding boxes and labels onto a copy of the frame."""
-        output = frame.copy()
-
+    def draw_boxes(self, frame_rgb: np.ndarray, detections: list[Detection]) -> np.ndarray:
+        """Draw bounding boxes onto a copy of the RGB frame using PIL."""
+        img = Image.fromarray(frame_rgb)
+        draw = ImageDraw.Draw(img)
         for det in detections:
             x1, y1, x2, y2 = det.bbox
             cls_idx = self.class_names.index(det.label) if det.label in self.class_names else 0
             colour = self._PALETTE[cls_idx % len(self._PALETTE)]
-
-            # Box
-            cv2.rectangle(output, (x1, y1), (x2, y2), colour, 2)
-
-            # Label background
+            draw.rectangle([x1, y1, x2, y2], outline=colour, width=2)
             label_text = f"{det.label} {det.confidence:.0%}"
-            (tw, th), _ = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, 0.55, 1)
-            cv2.rectangle(output, (x1, y1 - th - 8), (x1 + tw + 6, y1), colour, -1)
-
-            # Label text
-            cv2.putText(
-                output, label_text,
-                (x1 + 3, y1 - 4),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.55,
-                (255, 255, 255), 1, cv2.LINE_AA,
-            )
-
-        return output
+            text_w = len(label_text) * 7
+            draw.rectangle([x1, y1 - 20, x1 + text_w, y1], fill=colour)
+            draw.text((x1 + 3, y1 - 18), label_text, fill=(255, 255, 255))
+        return np.array(img)
 
     def unique_labels(self, detections: list[Detection]) -> list[str]:
-        """Return deduplicated ingredient names from a detection list."""
         return list(dict.fromkeys(d.label for d in detections))
 
 
-def run_inference(detector: YOLODetector, frame_bgr: np.ndarray) -> InferenceResult:
+def run_inference(detector: YOLODetector, frame_rgb: np.ndarray) -> InferenceResult:
     """Run detection and return a fully-typed InferenceResult."""
-    detections = detector.detect(frame_bgr)
-    annotated_bgr = detector.draw_boxes(frame_bgr, detections)
-    annotated_rgb = cv2.cvtColor(annotated_bgr, cv2.COLOR_BGR2RGB)
+    detections = detector.detect(frame_rgb)
+    annotated_rgb = detector.draw_boxes(frame_rgb, detections)
     return InferenceResult(
         labels=detector.unique_labels(detections),
         annotated_image=annotated_rgb,
