@@ -17,7 +17,7 @@ _DEFAULTS = {
 
 def get_preferences(user_id: str) -> dict[str, Any]:
     res = supabase.table("preferences").select("*").eq("user_id", user_id).maybe_single().execute()
-    return res.data or {**_DEFAULTS, "user_id": user_id}
+    return (res.data or {**_DEFAULTS, "user_id": user_id}) if res else {**_DEFAULTS, "user_id": user_id}
 
 
 def save_preferences(user_id: str, prefs: dict[str, Any]) -> None:
