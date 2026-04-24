@@ -17,7 +17,7 @@ _CSS = """
   --border:     #E8EAE5;
   --text:       #1A1A1A;
   --muted:      #6B7280;
-  --radius:     12px;
+  --radius:     10px;
   --shadow:     0 2px 12px rgba(0,0,0,0.06);
 }
 
