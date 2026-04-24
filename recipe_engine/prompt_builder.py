@@ -80,8 +80,9 @@ RULES:
 2. Every recipe MUST fit within {preferences.time_minutes} minutes total.
 3. Respect the diet strictly: {"no meat, fish, or eggs" if preferences.diet == "veg" else "eggs are allowed but no meat or fish" if preferences.diet == "eggetarian" else "all ingredients are allowed"}.
 4. Match the cuisine style: {cuisine_label}.
-5. Steps must be clear, numbered, and actionable.
-6. health_notes should explain why this recipe suits the user's health profile.
+5. Steps must be detailed and actionable — include quantities, timings, temperatures, and technique tips. Aim for 6–10 steps per recipe.
+6. ingredients list should include quantities (e.g. "2 medium tomatoes, chopped").
+7. health_notes should explain in 2–3 sentences why this recipe suits the user's health profile.
 ---
 
 Respond ONLY with a valid JSON array — no markdown, no explanation, no extra text.

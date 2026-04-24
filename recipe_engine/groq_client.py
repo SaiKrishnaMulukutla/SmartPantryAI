@@ -4,6 +4,7 @@ import asyncio
 import os
 from typing import Any
 
+import httpx
 from groq import AsyncGroq, Groq
 
 from preference_engine.schema import UserPreferences
@@ -11,9 +12,9 @@ from recipe_engine.prompt_builder import build_prompt
 from recipe_engine.recipe_parser import Recipe, parse_groq_response
 
 
-_DEFAULT_MODEL = "llama3-70b-8192"
+_DEFAULT_MODEL = "llama-3.3-70b-versatile"
 _DEFAULT_TEMPERATURE = 0.7
-_DEFAULT_MAX_TOKENS = 1500
+_DEFAULT_MAX_TOKENS = 3000
 
 
 class GroqRecipeClient:
@@ -44,8 +45,13 @@ class GroqRecipeClient:
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens
-        self._async_client = AsyncGroq(api_key=resolved_key)
-        self._sync_client = Groq(api_key=resolved_key)
+        # Python 3.13 enforces RFC 5280 keyUsage — Netskope CA cert fails this check.
+        # Disable verification for local dev; on cloud (Streamlit) no proxy exists.
+        _verify = not bool(os.getenv("REQUESTS_CA_BUNDLE"))
+        http_client = httpx.Client(verify=False if not _verify else True)
+        async_http_client = httpx.AsyncClient(verify=False if not _verify else True)
+        self._async_client = AsyncGroq(api_key=resolved_key, http_client=async_http_client)
+        self._sync_client = Groq(api_key=resolved_key, http_client=http_client)
 
     # ------------------------------------------------------------------
     # Async interface
