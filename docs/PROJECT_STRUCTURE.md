@@ -49,8 +49,8 @@ smartpantryai/
 │
 ├── detection/                    # Computer vision — local inference
 │   ├── __init__.py
-│   ├── model.py                  # load_model() (cached), run_inference()
-│   └── annotator.py              # draw_boxes() — bounding box overlay
+│   ├── model.py                  # YOLODetector class — detect(), draw_boxes()
+│   └── frame_processor.py        # OpenCV webcam capture + preprocessing
 │
 ├── recipe_engine/                # LLM recipe generation
 │   ├── __init__.py
@@ -58,9 +58,9 @@ smartpantryai/
 │   ├── prompt_builder.py         # build_prompt(ingredients, preferences)
 │   └── recipe_parser.py          # parse_groq_response() → list[Recipe]
 │
-├── preference_engine/            # User preference schema
+├── preference_engine/            # User preference schema (data only — no UI)
 │   ├── __init__.py
-│   └── schema.py                 # UserPreferences dataclass + from_dict/to_dict
+│   └── schema.py                 # UserPreferences dataclass
 │
 ├── pages/                        # UI pages — each exports render() only
 │   ├── login.py                  # Email + password form
@@ -73,7 +73,8 @@ smartpantryai/
 │
 ├── ui/                           # Visual design system
 │   ├── theme.py                  # inject() — CSS design tokens via st.markdown
-│   └── styles.css                # Global styles (card, badge, button overrides)
+│   ├── components.py             # Shared rendering helpers (badges, overlays, empty states)
+│   └── preference_widget.py      # Preference sidebar widget (diet, health, cuisine, mood, time)
 │
 └── training/                     # Model training (separate concern, not in app path)
     ├── kaggle_train.py

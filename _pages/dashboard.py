@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 from PIL import Image
 import streamlit as st
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -15,11 +16,14 @@ load_dotenv()
 from auth.session import current_user_id, current_email
 from db.history import save_history
 from db.favourites import add_favourite, remove_favourite, is_favourite
-from detector.yolo_detector import YOLODetector, Detection
-from preference_engine.preference_ui import render_preference_sidebar
+from detection.model import YOLODetector, InferenceResult, run_inference
+from ui.preference_widget import render_preference_sidebar
 from recipe_engine.groq_client import GroqRecipeClient
 from recipe_engine.recipe_parser import Recipe
-from ui.components import render_detection_overlay, render_ingredient_badges, render_empty_state
+from ui.components import (
+    render_detection_overlay, render_ingredient_badges, render_empty_state,
+    render_recipe_card_header, render_recipe_card_body,
+)
 
 _MODEL_PATH = os.getenv("YOLO_MODEL_PATH", "models/food_yolo11/best.pt")
 _CONFIDENCE = float(os.getenv("CONFIDENCE_THRESHOLD", "0.5"))
@@ -57,6 +61,7 @@ def render() -> None:
 
     st.title("🍳 SmartPantryAI")
     st.caption("Snap or upload ingredients → AI detects → personalised recipes")
+    st.markdown("<div style='margin-bottom:24px'></div>", unsafe_allow_html=True)
 
     cam_col, recipe_col = st.columns([1, 1], gap="large")
 
@@ -80,17 +85,12 @@ def render() -> None:
 
         # Run detection
         if image_data:
-            detector = _load_detector()
             img = Image.open(io.BytesIO(image_data)).convert("RGB")
             frame_bgr = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+            result: InferenceResult = run_inference(_load_detector(), frame_bgr)
 
-            detections: list[Detection] = detector.detect(frame_bgr)
-            annotated = detector.draw_boxes(frame_bgr, detections)
-            frame_rgb = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
-
-            st.session_state.frame_rgb = frame_rgb
-            st.session_state.detections = detections
-            st.session_state.last_ingredients = detector.unique_labels(detections)
+            st.session_state.frame_rgb = result.annotated_image
+            st.session_state.last_ingredients = result.labels
 
             render_detection_overlay(frame_rgb)
         elif st.session_state.frame_rgb is not None:
@@ -141,28 +141,22 @@ def render() -> None:
 def _render_recipes(recipes: list[Recipe]) -> None:
     uid = current_user_id()
     for recipe in recipes:
-        with st.expander(f"🍽️ {recipe.name}", expanded=True):
-            col1, col2 = st.columns([3, 1])
-            with col1:
-                st.markdown(f"**{recipe.cuisine}** &nbsp;·&nbsp; ⏱️ {recipe.cook_time_minutes} min")
-            with col2:
+        with st.container(border=True):
+            # Header row: name + badges on left, save button on right
+            col_info, col_action = st.columns([5, 1])
+            with col_info:
+                render_recipe_card_header(recipe)
+            with col_action:
                 if uid:
                     fav = is_favourite(uid, recipe.name)
-                    label = "❤️ Saved" if fav else "🤍 Save"
-                    if st.button(label, key=f"fav_{recipe.name}", use_container_width=True):
+                    heart = "❤️" if fav else "🤍"
+                    if st.button(heart, key=f"fav_{recipe.name}", use_container_width=True,
+                                 help="Remove from favourites" if fav else "Save to favourites"):
                         if fav:
                             remove_favourite(uid, recipe.name)
                         else:
                             add_favourite(uid, recipe.name, recipe.model_dump())
                         st.rerun()
 
-            st.markdown("**Ingredients**")
-            for ing in recipe.ingredients:
-                st.markdown(f"- {ing}")
-
-            st.markdown("**Steps**")
-            for i, step in enumerate(recipe.steps, 1):
-                st.markdown(f"{i}. {step}")
-
-            if recipe.health_notes:
-                st.info(f"💚 {recipe.health_notes}", icon=None)
+            st.divider()
+            render_recipe_card_body(recipe)
