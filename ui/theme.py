@@ -9,7 +9,7 @@ _CSS = """
 :root {
   --green:      #2D6A4F;
   --green-lt:   #52B788;
-  --green-bg:   #F0FFF7;
+  --green-bg:   #EDFAF3;
   --amber:      #F4A261;
   --amber-bg:   #FFF7F0;
   --bg:         #FAFAF8;
