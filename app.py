@@ -103,22 +103,12 @@ def main() -> None:
 
         snapshot = st.camera_input("Point camera at ingredients and capture")
 
-        get_recipes_btn = st.button(
-            "Get Recipes",
-            type="primary",
-            use_container_width=True,
-            disabled=not st.session_state.last_ingredients,
-        )
-
-        st.markdown("**Detected Ingredients**")
-        ingredient_placeholder = st.empty()
-
+        # Run detection before rendering button so disabled state is correct
         if snapshot is not None:
             detector = load_detector()
-            img = Image.open(io.BytesIO(snapshot.getvalue())).convert("RGB")
-            frame_rgb = np.array(img)
             import cv2
-            frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+            img = Image.open(io.BytesIO(snapshot.getvalue())).convert("RGB")
+            frame_bgr = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
 
             detections: list[Detection] = detector.detect(frame_bgr)
             annotated_bgr = detector.draw_boxes(frame_bgr, detections)
@@ -135,8 +125,15 @@ def main() -> None:
         else:
             render_empty_state("Capture a photo to detect ingredients.")
 
-        with ingredient_placeholder:
-            render_ingredient_badges(st.session_state.last_ingredients)
+        get_recipes_btn = st.button(
+            "Get Recipes",
+            type="primary",
+            use_container_width=True,
+            disabled=not st.session_state.last_ingredients,
+        )
+
+        st.markdown("**Detected Ingredients**")
+        render_ingredient_badges(st.session_state.last_ingredients)
 
     # ── Right column: Recipes ───────────────────────────────────────
     with recipe_col:
