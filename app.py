@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import io
 import os
-import time
 from pathlib import Path
 
+import numpy as np
+from PIL import Image
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -24,7 +26,6 @@ if _CSS_PATH.exists():
 
 # ── Local imports (after dotenv + page config) ──────────────────────
 from detector.yolo_detector import YOLODetector, Detection
-from detector.frame_processor import FrameProcessor
 from preference_engine.preference_ui import render_preference_sidebar
 from recipe_engine.groq_client import GroqRecipeClient
 from recipe_engine.recipe_parser import Recipe
@@ -40,7 +41,6 @@ from ui.components import (
 MODEL_PATH = os.getenv("YOLO_MODEL_PATH", "models/food_yolo11/best.pt")
 CONFIDENCE = float(os.getenv("CONFIDENCE_THRESHOLD", "0.5"))
 MAX_RECIPES = int(os.getenv("MAX_RECIPES", "3"))
-CAMERA_INDEX = 0
 
 
 # ── Cached resource loaders ─────────────────────────────────────────
@@ -101,79 +101,42 @@ def main() -> None:
     with cam_col:
         st.subheader("Live Ingredient Detection")
 
-        ctrl_col1, ctrl_col2 = st.columns(2)
-        with ctrl_col1:
-            if st.button(
-                "Stop Camera" if st.session_state.camera_running else "Start Camera",
-                type="primary",
-                use_container_width=True,
-            ):
-                st.session_state.camera_running = not st.session_state.camera_running
-                if not st.session_state.camera_running:
-                    st.session_state.frame_rgb = None
+        snapshot = st.camera_input("Point camera at ingredients and capture")
 
-        with ctrl_col2:
-            get_recipes_btn = st.button(
-                "Get Recipes",
-                type="primary",
-                use_container_width=True,
-                disabled=not st.session_state.last_ingredients,
-            )
+        get_recipes_btn = st.button(
+            "Get Recipes",
+            type="primary",
+            use_container_width=True,
+            disabled=not st.session_state.last_ingredients,
+        )
 
-        # Frame display placeholder
-        frame_placeholder = st.empty()
-
-        # Detected ingredients
         st.markdown("**Detected Ingredients**")
         ingredient_placeholder = st.empty()
 
-        # ── Camera loop ─────────────────────────────────────────────
-        if st.session_state.camera_running:
+        if snapshot is not None:
             detector = load_detector()
-            processor = FrameProcessor(camera_index=CAMERA_INDEX)
+            img = Image.open(io.BytesIO(snapshot.getvalue())).convert("RGB")
+            frame_rgb = np.array(img)
+            import cv2
+            frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
 
-            try:
-                processor.open()
-                while st.session_state.camera_running:
-                    frame_bgr = processor.read_frame()
-                    if frame_bgr is None:
-                        st.error("Camera read failed. Check that your webcam is connected.")
-                        st.session_state.camera_running = False
-                        break
+            detections: list[Detection] = detector.detect(frame_bgr)
+            annotated_bgr = detector.draw_boxes(frame_bgr, detections)
+            frame_rgb = cv2.cvtColor(annotated_bgr, cv2.COLOR_BGR2RGB)
 
-                    detections: list[Detection] = detector.detect(frame_bgr)
-                    annotated_bgr = detector.draw_boxes(frame_bgr, detections)
-                    frame_rgb = processor.bgr_to_rgb(annotated_bgr)
+            st.session_state.frame_rgb = frame_rgb
+            st.session_state.detections = detections
+            st.session_state.last_ingredients = detector.unique_labels(detections)
 
-                    st.session_state.frame_rgb = frame_rgb
-                    st.session_state.detections = detections
-                    st.session_state.last_ingredients = detector.unique_labels(detections)
+            render_detection_overlay(frame_rgb)
 
-                    with frame_placeholder:
-                        render_detection_overlay(frame_rgb)
-
-                    with ingredient_placeholder:
-                        render_ingredient_badges(st.session_state.last_ingredients)
-
-                    time.sleep(0.04)  # ~25 fps cap
-                    st.rerun()
-
-            except RuntimeError as exc:
-                st.error(str(exc))
-                st.session_state.camera_running = False
-            finally:
-                processor.close()
-
+        elif st.session_state.frame_rgb is not None:
+            render_detection_overlay(st.session_state.frame_rgb, caption="Last captured frame")
         else:
-            # Show last captured frame or placeholder
-            with frame_placeholder:
-                if st.session_state.frame_rgb is not None:
-                    render_detection_overlay(st.session_state.frame_rgb, caption="Last captured frame")
-                else:
-                    render_empty_state("Click 'Start Camera' to begin live detection.")
+            render_empty_state("Capture a photo to detect ingredients.")
 
-            with ingredient_placeholder:
-                render_ingredient_badges(st.session_state.last_ingredients)
+        with ingredient_placeholder:
+            render_ingredient_badges(st.session_state.last_ingredients)
 
     # ── Right column: Recipes ───────────────────────────────────────
     with recipe_col:
